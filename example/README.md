@@ -130,4 +130,4 @@ scripts/cleanup-microvms.sh    removes the non-CFN bits
 
 - The runner host is tiny and always-on (a few $/month); the real compute is pay-per-use MicroVMs, terminated at the end of each job.
 - The deploy role ships with **demo** permissions (`s3:ListAllMyBuckets`) just to prove assumption — replace them in `lib/constructs/gitlab-oidc.ts` with what your deployments actually need.
-- The MicroVM-driving IAM actions (`lambda:RunMicrovm`, …) are best-guess names for a new service — confirm them against the Lambda MicroVMs IAM reference.
+- The MicroVM-driving IAM actions use the `lambda-microvms:` prefix (e.g. `lambda-microvms:RunMicrovm`) — the service's own namespace, matching `aws lambda-microvms` / `@aws-sdk/client-lambda-microvms`. Action names are the PascalCase of the documented CLI verbs. If a call returns `AccessDenied`, re-check the exact name in the [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awslambdamicrovms.html).

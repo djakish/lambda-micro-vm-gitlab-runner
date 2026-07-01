@@ -81,19 +81,22 @@ export class RunnerHost extends Construct {
     const stack = Stack.of(this);
     const { config, artifactBucket, buildRole } = props;
 
-    // Drive MicroVMs. NOTE: confirm these action names against the Lambda
-    // MicroVMs IAM reference — the service is new.
+    // Drive MicroVMs. The IAM prefix is `lambda-microvms:` (the service's own
+    // namespace — the same string used by `aws lambda-microvms`, boto3
+    // `client("lambda-microvms")`, and `@aws-sdk/client-lambda-microvms`), NOT
+    // the `lambda:` prefix of regular Lambda functions. Action names are the
+    // PascalCase of the documented CLI verbs.
     role.addToPolicy(
       new iam.PolicyStatement({
         sid: 'DriveMicrovms',
         actions: [
-          'lambda:RunMicrovm',
-          'lambda:GetMicrovm',
-          'lambda:ListMicrovms',
-          'lambda:CreateMicrovmAuthToken',
-          'lambda:SuspendMicrovm',
-          'lambda:ResumeMicrovm',
-          'lambda:TerminateMicrovm',
+          'lambda-microvms:RunMicrovm',
+          'lambda-microvms:GetMicrovm',
+          'lambda-microvms:ListMicrovms',
+          'lambda-microvms:CreateMicrovmAuthToken',
+          'lambda-microvms:SuspendMicrovm',
+          'lambda-microvms:ResumeMicrovm',
+          'lambda-microvms:TerminateMicrovm',
         ],
         resources: ['*'],
       }),
@@ -103,7 +106,7 @@ export class RunnerHost extends Construct {
     role.addToPolicy(
       new iam.PolicyStatement({
         sid: 'ManageMicrovmImages',
-        actions: ['lambda:CreateMicrovmImage', 'lambda:GetMicrovmImage'],
+        actions: ['lambda-microvms:CreateMicrovmImage', 'lambda-microvms:GetMicrovmImage'],
         resources: ['*'],
       }),
     );
