@@ -178,7 +178,11 @@ func dispatch(line []byte, stdout, stderr io.Writer) (ExecResult, bool) {
 	case protocol.KindStderr:
 		writeDecoded(stderr, fr.Data)
 	case protocol.KindExit:
-		return ExecResult{ExitCode: fr.Code, Completed: true}, true
+		code := 0
+		if fr.Code != nil {
+			code = *fr.Code
+		}
+		return ExecResult{ExitCode: code, Completed: true}, true
 	case protocol.KindError:
 		return ExecResult{Err: fmt.Errorf("agent error: %s", fr.Message)}, true
 	}

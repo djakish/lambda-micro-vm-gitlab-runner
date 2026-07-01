@@ -48,8 +48,10 @@ type Frame struct {
 	Kind string `json:"kind"`
 	// Data holds base64-encoded output bytes for stdout/stderr frames.
 	Data string `json:"data,omitempty"`
-	// Code is the process exit status for an exit frame.
-	Code int `json:"code,omitempty"`
+	// Code is the process exit status for an exit frame. It is a pointer so a
+	// zero exit code (success) is still serialized explicitly rather than being
+	// dropped by omitempty — an exit frame always carries a code.
+	Code *int `json:"code,omitempty"`
 	// Message describes an agent-side error for an error frame.
 	Message string `json:"message,omitempty"`
 }

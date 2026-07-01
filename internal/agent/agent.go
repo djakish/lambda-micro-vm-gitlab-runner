@@ -157,7 +157,7 @@ func handleExec(w http.ResponseWriter, r *http.Request, workdir string, logger *
 	wg.Wait()
 
 	code := exitCode(cmd.Wait())
-	fw.send(protocol.Frame{Kind: protocol.KindExit, Code: code})
+	fw.send(protocol.Frame{Kind: protocol.KindExit, Code: &code})
 	logger.Printf("exec done id=%q code=%d", execID, code)
 }
 
