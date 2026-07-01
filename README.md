@@ -133,7 +133,7 @@ image/build-and-publish.sh
 
 The script prints the resulting **image ARN** — use it as `MICROVM_IMAGE_ARN` below.
 
-The default [image](image/Dockerfile) is Debian + `git`, `git-lfs`, and the `gitlab-runner` binary (needed *inside* the VM for `get_sources` and cache/artifact steps), plus the agent. **Add your own build tooling** (compilers, SDKs, Docker) in a downstream layer or by editing the Dockerfile.
+The default [image](image/Dockerfile) is Debian + `git`, `git-lfs`, the `gitlab-runner` binary (needed *inside* the VM for `get_sources` and cache/artifact steps), **Docker Engine + buildx** (see [Building Docker images](#building-docker-images)), and the agent. **Add your own build tooling** (compilers, SDKs) in a downstream layer or by editing the Dockerfile.
 
 ### 2. Install the driver on the runner host
 
@@ -185,10 +185,34 @@ build:
 - Lock job egress to your VPC with an egress network connector (`MICROVM_EGRESS_CONNECTORS`) — see [Networking](https://docs.aws.amazon.com/lambda/latest/dg/microvms-networking.html).
 - The runner host holds AWS credentials; the MicroVMs themselves only get the optional `MICROVM_EXECUTION_ROLE_ARN` you grant them.
 
+## Building Docker images
+
+The default image ships **Docker Engine + buildx**, and the entrypoint starts
+`dockerd` before the agent — so `docker` just works inside a job, no
+`services: docker:dind`, no `--privileged`, no TLS-to-a-sidecar dance. This is
+safe here because each job is its own Firecracker MicroVM: the VM *is* the
+sandbox, so there is no shared host to escape to. (Docker uses namespaces/cgroups,
+not nested virtualization, so it runs fine in a microVM.)
+
+```yaml
+build-image:
+  variables:
+    REGISTRY: 123456789012.dkr.ecr.us-east-1.amazonaws.com
+  script:
+    # Auth to ECR (VM has internet egress; or grant MICROVM_EXECUTION_ROLE_ARN):
+    - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$REGISTRY"
+    - docker buildx build -t "$REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_SHA" --push .
+```
+
+Notes:
+- **Multi-arch** works via `docker buildx` + QEMU (userspace emulation — no nested virt needed).
+- **Sizing:** image builds are heavier than test jobs; run a larger MicroVM size. The guest kernel needs the usual Docker features (overlayfs, br_netfilter) — the standard base image has them.
+- **Disable Docker** for lean test-only images by setting `MICROVM_ENABLE_DOCKER=0` (skips starting `dockerd`).
+- Kaniko is not used — Google [archived it in June 2025](https://github.com/GoogleContainerTools/kaniko/issues/3348); real Docker in a VM is the simpler, better-isolated path here.
+
 ## Limitations & future work
 
-- **`services:` are not started.** `CUSTOM_ENV_CI_JOB_SERVICES` is available to the driver but service containers aren't launched. To support them, run them inside the VM (Docker in the image) or as companion MicroVMs. 
-- **Docker-in-Docker** needs Docker installed in the image; nested virtualization has Firecracker caveats.
+- **`services:` are not started.** `CUSTOM_ENV_CI_JOB_SERVICES` is available to the driver but service containers aren't launched. To support them, launch them inside the VM (Docker is already there) or as companion MicroVMs.
 - **Interactive web terminals** are not supported.
 - The driver shells out to the **AWS CLI** rather than an SDK, since `lambda-microvms` is new; the CLI must be present on the runner host.
 
