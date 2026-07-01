@@ -1,0 +1,36 @@
+# Sample GitLab CI pipeline for the MicroVM runner.
+#
+# The `build` job shows a normal job (runs in a throwaway MicroVM, Docker works).
+# The `deploy` job assumes an AWS role via OIDC — no static AWS access keys.
+#
+# Before using: set AWS_ROLE_ARN to the `DeployRoleArn` output from `cdk deploy`,
+# and make sure this project matches `oidcSubject` in config.ts.
+
+stages:
+  - build
+  - deploy
+
+build-image:
+  stage: build
+  script:
+    - echo "Running inside a Lambda MicroVM on $(uname -m)"
+    - docker buildx version
+    # Docker is already running in the VM — build like normal:
+    # - docker build -t my-app:$CI_COMMIT_SHA .
+
+deploy:
+  stage: deploy
+  # Ask GitLab for an OIDC token scoped to AWS.
+  id_tokens:
+    AWS_ID_TOKEN:
+      aud: https://gitlab.com # must equal `oidcAudience` in config.ts
+  variables:
+    AWS_ROLE_ARN: arn:aws:iam::123456789012:role/microvm-runner-deploy # ← DeployRoleArn output
+    AWS_DEFAULT_REGION: us-east-1
+  script:
+    # Hand the token to the AWS CLI; it auto-assumes AWS_ROLE_ARN via web identity.
+    - echo "$AWS_ID_TOKEN" > /tmp/oidc_token
+    - export AWS_WEB_IDENTITY_TOKEN_FILE=/tmp/oidc_token
+    # Proof it worked — these run as the deploy role, with zero stored secrets:
+    - aws sts get-caller-identity
+    - aws s3 ls
