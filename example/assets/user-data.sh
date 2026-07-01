@@ -41,6 +41,11 @@ echo "=== [3/6] Go toolchain ==="
 curl -fsSL "https://go.dev/dl/go${GO_VERSION}.${GO_ARCH}.tar.gz" -o /tmp/go.tgz
 rm -rf /usr/local/go
 tar -C /usr/local -xzf /tmp/go.tgz
+# cloud-init runs with no $HOME, which breaks `go build` (it needs a build cache
+# location). Set HOME/GOCACHE/GOPATH explicitly.
+export HOME=/root
+export GOPATH=/root/go
+export GOCACHE=/root/.cache/go-build
 export PATH="${PATH}:/usr/local/go/bin"
 
 echo "=== [4/6] build microvm-executor from source ==="
