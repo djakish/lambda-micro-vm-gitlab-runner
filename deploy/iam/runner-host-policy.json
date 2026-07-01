@@ -1,0 +1,30 @@
+{
+  "//": "Permissions the GitLab Runner host needs to drive MicroVMs. Attach to the runner's instance profile (preferred) or an IAM user.",
+  "//action-names": "Lambda MicroVMs is a new service; confirm the exact IAM action names/prefix in the service's IAM reference. The `aws lambda-microvms` CLI most likely maps to the `lambda:` prefix as below. Adjust if the service uses a distinct namespace.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DriveMicrovms",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:RunMicrovm",
+        "lambda:GetMicrovm",
+        "lambda:ListMicrovms",
+        "lambda:CreateMicrovmAuthToken",
+        "lambda:SuspendMicrovm",
+        "lambda:ResumeMicrovm",
+        "lambda:TerminateMicrovm"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassJobExecutionRole",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/MicrovmJobRole",
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+      }
+    }
+  ]
+}

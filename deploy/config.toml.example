@@ -1,0 +1,58 @@
+# GitLab Runner configuration for the AWS Lambda MicroVM custom executor.
+#
+# Copy to /etc/gitlab-runner/config.toml on the runner host and fill in the
+# REPLACE_* values. The runner host needs: the microvm-executor binary, the AWS
+# CLI (v2, new enough to include `lambda-microvms`), and AWS credentials with
+# permission to run/terminate MicroVMs (instance profile recommended).
+
+concurrent = 10       # each concurrent job launches its own MicroVM
+check_interval = 3
+
+[[runners]]
+  name = "aws-lambda-microvm"
+  url = "https://gitlab.com/"
+  token = "REPLACE_WITH_RUNNER_AUTH_TOKEN"
+  executor = "custom"
+
+  # These must match the in-VM paths the driver reports from `config` and the
+  # directories created in the MicroVM image (see image/Dockerfile).
+  builds_dir = "/builds"
+  cache_dir = "/cache"
+
+  # Driver configuration is passed as environment variables (MICROVM_*).
+  environment = [
+    "MICROVM_REGION=us-east-1",
+    "MICROVM_IMAGE_ARN=arn:aws:lambda:us-east-1:123456789012:microvm-image:gitlab-ci-runner",
+    # Terminate a MicroVM after at most 4h even if a job hangs (1-28800s):
+    "MICROVM_MAX_DURATION_SECONDS=14400",
+    # Optional overrides (defaults shown):
+    # "MICROVM_AGENT_PORT=8080",
+    # "MICROVM_STATE_DIR=/var/lib/microvm-executor",
+    # "MICROVM_RUN_TIMEOUT_SECONDS=180",
+    # "MICROVM_HEALTH_TIMEOUT_SECONDS=120",
+    # "MICROVM_IDLE_POLICY={\"autoResumeEnabled\":true,\"maxIdleDurationSeconds\":900,\"suspendedDurationSeconds\":300}",
+    # "MICROVM_EXECUTION_ROLE_ARN=arn:aws:iam::123456789012:role/MicrovmJobRole",
+    # "MICROVM_EGRESS_CONNECTORS=arn:aws:lambda:us-east-1:123456789012:network-connector:my-vpc",
+  ]
+
+  [runners.custom]
+    # All four stages are the same binary invoked with a different first arg.
+    config_exec = "/opt/microvm-executor/bin/microvm-executor"
+    config_args = ["config"]
+    config_exec_timeout = 60          # seconds
+
+    prepare_exec = "/opt/microvm-executor/bin/microvm-executor"
+    prepare_args = ["prepare"]
+    prepare_exec_timeout = 300        # seconds; covers run-microvm + wait-for-RUNNING + agent health
+
+    run_exec = "/opt/microvm-executor/bin/microvm-executor"
+    run_args = ["run"]                # GitLab appends: <script-path> <sub-stage>
+
+    cleanup_exec = "/opt/microvm-executor/bin/microvm-executor"
+    cleanup_args = ["cleanup"]
+    cleanup_exec_timeout = 120        # seconds
+
+    # On job cancel/timeout the driver receives SIGTERM and cancels the exec
+    # stream, which kills the job's process group inside the MicroVM.
+    graceful_kill_timeout = 300
+    force_kill_timeout = 60

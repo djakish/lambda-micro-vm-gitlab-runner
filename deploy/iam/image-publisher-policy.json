@@ -1,0 +1,30 @@
+{
+  "//": "Permissions for whoever runs image/build-and-publish.sh (a human, or a CI job that rebuilds the runner image). Confirm action names against the Lambda MicroVMs IAM reference.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "UploadArtifact",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::REPLACE_WITH_ARTIFACT_BUCKET/*"
+    },
+    {
+      "Sid": "ManageImages",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateMicrovmImage",
+        "lambda:GetMicrovmImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassBuildRole",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": "arn:aws:iam::REPLACE_WITH_ACCOUNT_ID:role/MicrovmBuildRole",
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+      }
+    }
+  ]
+}

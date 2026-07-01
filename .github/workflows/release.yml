@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # needed to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release binaries
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+          mkdir -p dist
+
+          build() { # $1=os $2=arch $3=cmd
+            local os="$1" arch="$2" cmd="$3"
+            echo "building ${cmd} ${os}/${arch}"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "dist/${cmd}" "./cmd/${cmd}"
+            tar -C dist -czf "dist/${cmd}-${VERSION}-${os}-${arch}.tar.gz" "${cmd}"
+            rm "dist/${cmd}"
+          }
+
+          # Driver: runner host is usually Linux; darwin included for local `setup`.
+          for arch in amd64 arm64; do build linux "$arch" microvm-executor; done
+          build darwin arm64 microvm-executor
+          build darwin amd64 microvm-executor
+
+          # Agent: only runs inside the MicroVM (Linux). Convenience artifact —
+          # the image build compiles it from source too.
+          for arch in amd64 arm64; do build linux "$arch" microvm-agent; done
+
+          ( cd dist && sha256sum *.tar.gz > checksums.txt )
+          ls -l dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
