@@ -47,7 +47,7 @@ export class RunnerHost extends Construct {
     const securityGroup = new ec2.SecurityGroup(this, 'SecurityGroup', {
       vpc,
       allowAllOutbound: true,
-      description: 'MicroVM runner host — egress only, no inbound',
+      description: 'MicroVM runner host - egress only, no inbound',
     });
 
     this.instance = new ec2.Instance(this, 'Instance', {

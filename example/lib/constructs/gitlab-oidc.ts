@@ -42,7 +42,7 @@ export class GitlabOidc extends Construct {
 
     this.deployRole = new iam.Role(this, 'DeployRole', {
       roleName: props.deployRoleName,
-      description: 'Assumed by GitLab CI jobs via OIDC — no static AWS keys.',
+      description: 'Assumed by GitLab CI jobs via OIDC - no static AWS keys.',
       maxSessionDuration: Duration.hours(1),
       assumedBy: new iam.OpenIdConnectPrincipal(this.provider, {
         StringEquals: { [`${host}:aud`]: props.audience },
